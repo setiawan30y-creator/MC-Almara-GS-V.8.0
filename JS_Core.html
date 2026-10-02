@@ -37,7 +37,7 @@ function clAddCash(den){
   row.innerHTML='<div class="form-grid"><div class="field"><label>Denominasi</label><input class="cl-den" type="number" step="any" value="'+esc(den||'')+'"></div><div class="field"><label>Qty Fisik</label><input class="cl-qty" type="number" step="any" value="0" oninput="clCashCalc()"></div><div class="field"><label>Jumlah Fisik</label><input class="cl-amt" type="number" step="any" value="0" oninput="clCashCalc()"></div></div><button class="btn" type="button" onclick="this.parentNode.remove();clCashCalc()">Hapus</button>';
   root.appendChild(row);clCashCalc();
 }
-function clCashCalc(){
+function clCashCalc(){Array.from(document.querySelectorAll('#cl_cash .card')).forEach(function(r){var den=Number(r.querySelector('.cl-den').value||0),qty=Number(r.querySelector('.cl-qty').value||0);r.querySelector('.cl-amt').value=den*qty});
   var total=Array.from(document.querySelectorAll('#cl_cash .cl-amt')).reduce(function(a,x){return a+Number(x.value||0)},0);
   var p=window.CL_PREVIEW||{},diff=total+Number(p.gantunganOutstanding||0)-Number(p.systemCash||0);
   var el=$('cl_summary');if(!el)return;
