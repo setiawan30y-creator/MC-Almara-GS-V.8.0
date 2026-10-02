@@ -11,7 +11,7 @@ function renderClosing(meta){
   '<div class="card"><h3>Stok Valas — per Currency / Denominasi</h3><div id="cl_fx"></div></div>'+
   '<div class="modal-actions"><button class="btn primary" onclick="clSave()">Simpan Closing</button></div>'+
   '<div id="cl_history" class="card"><h3>Closing Terakhir</h3><div class="muted">Memuat...</div></div>';
-  window.CL_META=meta;clPreview();
+  window.CL_META=meta;var dens=[];(meta.cash||[]).forEach(function(x){var d=Number(x.DENOMINATION||0);if(d&&!dens.includes(d))dens.push(d)});if(dens.length)dens.forEach(function(d){clAddCash(d)});else clAddCash();clPreview();
 }
 async function clPreview(){
   try{
