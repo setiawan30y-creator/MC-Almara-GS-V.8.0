@@ -12,7 +12,7 @@ _closingCashSystem:function(branchId,asOf){
   });
   MC_Database.rows('CASH_MUTATIONS').forEach(function(x){
     var md=new Date(x.DATE||x.CREATED_AT);
-    if(md<=d&&(!branchId||String(x.BRANCH_ID||'')===String(branchId))){
+    if(md<=d){
       var a=Number(x.AMOUNT||0);
       sum+=String(x.DIRECTION||'').toUpperCase()==='IN'?a:-a;
     }
@@ -31,7 +31,7 @@ closingPreview:function(p){
   var asOf=p&&p.date?p.date:new Date(),branchId=p&&p.branchId||'';
   var systemCash=this._closingCashSystem(branchId,asOf),gantungan=this._closingGantungan(asOf);
   var fx=this._buildFxLayers().map(function(l){return {CURRENCY:l.currency,DENOMINATION:l.denomination,TYPE:l.type,SYSTEM_QTY:l.quantity,COST_RATE:l.costRate}});
-  var existing=MC_Database.rows('CLOSING').filter(function(x){return String(x.BRANCH_ID||'')===String(branchId)&&String(x.DATE||'').slice(0,10)===String(asOf).slice(0,10)});
+  var day=Utilities.formatDate(new Date(asOf),MC_CONFIG.TIMEZONE,'yyyy-MM-dd');var existing=MC_Database.rows('CLOSING').filter(function(x){return String(x.BRANCH_ID||'')===String(branchId)&&Utilities.formatDate(new Date(x.DATE),MC_CONFIG.TIMEZONE,'yyyy-MM-dd')===day});
   return {date:asOf,branchId:branchId,systemCash:systemCash,gantunganOutstanding:gantungan,fx:fx,existing:existing};
 },
 createClosing:function(p,s){
@@ -40,12 +40,12 @@ createClosing:function(p,s){
     MC_Utils.require(p&&p.date,'Tanggal closing wajib');
     var date=new Date(p.date);MC_Utils.require(!isNaN(date.getTime()),'Tanggal closing tidak valid');
     var branchId=p.branchId||'';
-    var duplicate=MC_Database.rows('CLOSING').some(function(x){return String(x.BRANCH_ID||'')===String(branchId)&&String(x.DATE||'').slice(0,10)===String(p.date).slice(0,10)&&String(x.STATUS||'').toUpperCase()!=='CANCELLED'});
+    var day=Utilities.formatDate(date,MC_CONFIG.TIMEZONE,'yyyy-MM-dd');var duplicate=MC_Database.rows('CLOSING').some(function(x){return String(x.BRANCH_ID||'')===String(branchId)&&Utilities.formatDate(new Date(x.DATE),MC_CONFIG.TIMEZONE,'yyyy-MM-dd')===day&&String(x.STATUS||'').toUpperCase()!=='CANCELLED'});
     MC_Utils.require(!duplicate,'Closing untuk tanggal/cabang tersebut sudah ada');
     var preview=this.closingPreview({date:date,branchId:branchId}),cashRows=Array.isArray(p.cash)?p.cash:[],fxRows=Array.isArray(p.fx)?p.fx:[];
     var physicalCash=cashRows.reduce(function(a,x){return a+Number(x.amount||0)},0);
     var difference=physicalCash+preview.gantunganOutstanding-preview.systemCash;
-    var status=Math.abs(difference)<0.01?'PENDING_APPROVAL':'DIFFERENCE';
+    var fxMismatch=false;var sysMap={};preview.fx.forEach(function(x){sysMap[[x.CURRENCY,x.DENOMINATION,x.TYPE].join('|')]=x});fxRows.forEach(function(x){var key=[String(x.currency||'').toUpperCase(),String(x.denomination||''),String(x.type||'NOTE').toUpperCase()].join('|'),sys=sysMap[key]||{SYSTEM_QTY:0};if(Math.abs(Number(x.qty||0)-Number(sys.SYSTEM_QTY||0))>0.000001)fxMismatch=true});var status=(Math.abs(difference)<0.01&&!fxMismatch)?'PENDING_APPROVAL':'DIFFERENCE';
     var now=new Date(),id=MC_Utils.nextId('CLS');
     var closing={ID:id,DATE:date,BRANCH_ID:branchId,SYSTEM_BALANCE:preview.systemCash,PHYSICAL_CASH:physicalCash,GANTUNGAN_OUTSTANDING:preview.gantunganOutstanding,DIFFERENCE:difference,STATUS:status,APPROVED_BY:'',CREATED_AT:now};
     MC_Database.insert('CLOSING',closing);
@@ -64,7 +64,7 @@ approveClosing:function(id,s){
   try{
     var x=MC_Database.find('CLOSING','ID',id);MC_Utils.require(x,'Closing tidak ditemukan');
     MC_Utils.require(['PENDING_APPROVAL','DIFFERENCE'].includes(String(x.STATUS).toUpperCase()),'Closing sudah diproses');
-    MC_Utils.require(Math.abs(Number(x.DIFFERENCE||0))<0.01,'Closing dengan selisih tidak dapat di-approve');
+    var detailMismatch=MC_Database.rows('CLOSING_DETAIL').some(function(d){return String(d.CLOSING_ID)===String(id)&&Math.abs(Number(d.DIFFERENCE||0))>0.000001});MC_Utils.require(Math.abs(Number(x.DIFFERENCE||0))<0.01&&!detailMismatch,'Closing dengan selisih tidak dapat di-approve');
     var now=new Date(),next=Object.assign({},x,{STATUS:'APPROVED',APPROVED_BY:s.userId,APPROVED_AT:now});
     MC_Database.update('CLOSING','ID',id,next);MC_Database.audit('Closing','APPROVE',id,x,next,'Approve closing');return next;
   }finally{lock.releaseLock()}
