@@ -1,1 +1,1 @@
-const MC_PublicKurs={module:'PublicKurs'};
+function PublicKurs_PageContract(){return MC_ModuleService.schema('PublicKurs')}

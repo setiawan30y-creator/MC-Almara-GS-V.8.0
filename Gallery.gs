@@ -1,1 +1,1 @@
-const MC_Gallery={module:'Gallery'};
+function Gallery_PageContract(){return MC_ModuleService.schema('Gallery')}

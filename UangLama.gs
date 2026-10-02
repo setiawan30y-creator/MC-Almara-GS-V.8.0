@@ -1,1 +1,1 @@
-const MC_UangLama={module:'UangLama'};
+function UangLama_PageContract(){return MC_ModuleService.schema('UangLama')}

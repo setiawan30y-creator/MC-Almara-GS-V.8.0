@@ -1,1 +1,1 @@
-const MC_DTOTT={module:'DTOTT'};
+function DTOTT_PageContract(){return MC_ModuleService.schema('DTOTT')}

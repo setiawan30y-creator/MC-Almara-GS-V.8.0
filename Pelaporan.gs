@@ -1,1 +1,1 @@
-const MC_Pelaporan={module:'Pelaporan'};
+function Pelaporan_PageContract(){return MC_ModuleService.schema('Pelaporan')}

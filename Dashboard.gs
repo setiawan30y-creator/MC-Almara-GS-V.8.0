@@ -1,1 +1,1 @@
-const MC_Dashboard={module:'Dashboard'};
+function Dashboard_PageContract(){return MC_ModuleService.schema('Dashboard')}

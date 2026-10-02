@@ -1,1 +1,1 @@
-const MC_UsersRoles={module:'UsersRoles'};
+function UsersRoles_PageContract(){return MC_ModuleService.schema('UsersRoles')}

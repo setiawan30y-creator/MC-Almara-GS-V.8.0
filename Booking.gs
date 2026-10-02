@@ -1,1 +1,1 @@
-const MC_Booking={module:'Booking'};
+function Booking_PageContract(){return MC_ModuleService.schema('Booking')}

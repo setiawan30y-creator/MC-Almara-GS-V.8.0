@@ -1,1 +1,1 @@
-const MC_Translate={module:'Translate'};
+function Translate_PageContract(){return MC_ModuleService.schema('Translate')}

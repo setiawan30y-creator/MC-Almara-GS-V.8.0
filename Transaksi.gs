@@ -1,1 +1,1 @@
-const MC_Transaksi={module:'Transaksi'};
+function Transaksi_PageContract(){return MC_ModuleService.schema('Transaksi')}

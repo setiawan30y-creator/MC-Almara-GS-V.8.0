@@ -1,1 +1,1 @@
-const MC_WATemplate={module:'WATemplate'};
+function WATemplate_PageContract(){return MC_ModuleService.schema('WATemplate')}

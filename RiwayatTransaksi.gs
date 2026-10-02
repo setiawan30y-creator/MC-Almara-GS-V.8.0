@@ -1,1 +1,1 @@
-const MC_RiwayatTransaksi={module:'RiwayatTransaksi'};
+function RiwayatTransaksi_PageContract(){return MC_ModuleService.schema('RiwayatTransaksi')}

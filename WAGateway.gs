@@ -1,1 +1,1 @@
-const MC_WAGateway={module:'WAGateway'};
+function WAGateway_PageContract(){return MC_ModuleService.schema('WAGateway')}

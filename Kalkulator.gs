@@ -1,1 +1,1 @@
-const MC_Kalkulator={module:'Kalkulator'};
+function Kalkulator_PageContract(){return MC_ModuleService.schema('Kalkulator')}

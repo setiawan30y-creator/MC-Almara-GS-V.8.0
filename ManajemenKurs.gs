@@ -1,1 +1,1 @@
-const MC_ManajemenKurs={module:'ManajemenKurs'};
+function ManajemenKurs_PageContract(){return MC_ModuleService.schema('ManajemenKurs')}

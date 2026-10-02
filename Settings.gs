@@ -1,1 +1,1 @@
-const MC_Settings={module:'Settings'};
+function Settings_PageContract(){return MC_ModuleService.schema('Settings')}

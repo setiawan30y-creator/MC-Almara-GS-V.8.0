@@ -1,1 +1,1 @@
-const MC_Koin={module:'Koin'};
+function Koin_PageContract(){return MC_ModuleService.schema('Koin')}

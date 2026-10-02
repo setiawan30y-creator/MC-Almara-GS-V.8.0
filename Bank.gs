@@ -1,1 +1,1 @@
-const MC_Bank={module:'Bank'};
+function Bank_PageContract(){return MC_ModuleService.schema('Bank')}

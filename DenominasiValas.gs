@@ -1,1 +1,1 @@
-const MC_DenominasiValas={module:'DenominasiValas'};
+function DenominasiValas_PageContract(){return MC_ModuleService.schema('DenominasiValas')}

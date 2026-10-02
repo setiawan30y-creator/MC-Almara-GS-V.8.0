@@ -1,1 +1,1 @@
-const MC_Gantungan={module:'Gantungan'};
+function Gantungan_PageContract(){return MC_ModuleService.schema('Gantungan')}

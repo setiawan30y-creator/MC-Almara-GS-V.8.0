@@ -1,1 +1,1 @@
-const MC_UserProfile={module:'UserProfile'};
+function UserProfile_PageContract(){return MC_ModuleService.schema('UserProfile')}

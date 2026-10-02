@@ -1,1 +1,1 @@
-const MC_Nasabah={module:'Nasabah'};
+function Nasabah_PageContract(){return MC_ModuleService.schema('Nasabah')}

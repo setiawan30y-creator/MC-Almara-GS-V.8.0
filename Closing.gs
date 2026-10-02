@@ -1,1 +1,1 @@
-const MC_Closing={module:'Closing'};
+function Closing_PageContract(){return MC_ModuleService.schema('Closing')}

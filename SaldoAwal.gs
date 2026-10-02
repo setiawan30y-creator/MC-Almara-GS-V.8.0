@@ -1,1 +1,1 @@
-const MC_SaldoAwal={module:'SaldoAwal'};
+function SaldoAwal_PageContract(){return MC_ModuleService.schema('SaldoAwal')}

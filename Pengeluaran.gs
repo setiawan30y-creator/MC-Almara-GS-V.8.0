@@ -1,1 +1,1 @@
-const MC_Pengeluaran={module:'Pengeluaran'};
+function Pengeluaran_PageContract(){return MC_ModuleService.schema('Pengeluaran')}

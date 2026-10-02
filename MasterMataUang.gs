@@ -1,1 +1,1 @@
-const MC_MasterMataUang={module:'MasterMataUang'};
+function MasterMataUang_PageContract(){return MC_ModuleService.schema('MasterMataUang')}
