@@ -43,7 +43,7 @@ createClosing:function(p,s){
     var day=Utilities.formatDate(date,MC_CONFIG.TIMEZONE,'yyyy-MM-dd');var duplicate=MC_Database.rows('CLOSING').some(function(x){return String(x.BRANCH_ID||'')===String(branchId)&&Utilities.formatDate(new Date(x.DATE),MC_CONFIG.TIMEZONE,'yyyy-MM-dd')===day&&String(x.STATUS||'').toUpperCase()!=='CANCELLED'});
     MC_Utils.require(!duplicate,'Closing untuk tanggal/cabang tersebut sudah ada');
     var preview=this.closingPreview({date:date,branchId:branchId}),cashRows=Array.isArray(p.cash)?p.cash:[],fxRows=Array.isArray(p.fx)?p.fx:[];
-    var physicalCash=cashRows.reduce(function(a,x){return a+Number(x.amount||0)},0);
+    cashRows.forEach(function(x){var den=Number(x.denomination||0),qty=Number(x.qty||0),amt=Number(x.amount||0);MC_Utils.require(den>0&&qty>=0,'Denominasi/qty kas closing tidak valid');MC_Utils.require(Math.abs(amt-(den*qty))<0.01,'Jumlah fisik kas harus = denominasi x qty');});var physicalCash=cashRows.reduce(function(a,x){return a+Number(x.amount||0)},0);
     var difference=physicalCash+preview.gantunganOutstanding-preview.systemCash;
     var fxMismatch=false;var sysMap={};preview.fx.forEach(function(x){sysMap[[x.CURRENCY,x.DENOMINATION,x.TYPE].join('|')]=x});fxRows.forEach(function(x){var key=[String(x.currency||'').toUpperCase(),String(x.denomination||''),String(x.type||'NOTE').toUpperCase()].join('|'),sys=sysMap[key]||{SYSTEM_QTY:0};if(Math.abs(Number(x.qty||0)-Number(sys.SYSTEM_QTY||0))>0.000001)fxMismatch=true});var status=(Math.abs(difference)<0.01&&!fxMismatch)?'PENDING_APPROVAL':'DIFFERENCE';
     var now=new Date(),id=MC_Utils.nextId('CLS');
