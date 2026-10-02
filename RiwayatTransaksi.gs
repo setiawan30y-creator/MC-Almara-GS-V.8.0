@@ -1,2 +1,1 @@
-/** RiwayatTransaksi module scaffold. Core financial writes must route through Code.gs core engine. */
-function RiwayatTransaksi_moduleInfo(){return {module:"RiwayatTransaksi",status:"SCAFFOLD",version:"8.0.0"};}
+const MC_RiwayatTransaksi={module:'RiwayatTransaksi'};

@@ -1,0 +1,1 @@
+function INSTALL(){return setupSystem()}

@@ -1,0 +1,1 @@
+const MC_UangLama={module:'UangLama'};

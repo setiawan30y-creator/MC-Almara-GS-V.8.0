@@ -1,0 +1,1 @@
+const MC_Kalkulator={module:'Kalkulator'};
