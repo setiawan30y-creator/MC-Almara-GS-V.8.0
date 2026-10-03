@@ -40,9 +40,30 @@ async function openPage(module){
     $('content').innerHTML='<div class="card error-card"><h2>Gagal memuat</h2><div class="muted">'+esc(e&&e.message||e)+'</div><button class="btn" onclick="openPage(APP.module)">Muat ulang</button></div>';
   }
 }
+async function rateFormOpen(existing){
+  var meta=await api('rateMeta');
+  var currencies=(meta&&meta.currencies)||[];
+  var opts=currencies.map(function(c){return '<option value="'+esc(c.ISO_CODE)+'" '+(existing&&String(existing.CURRENCY)===String(c.ISO_CODE)?'selected':'')+'>'+esc(c.ISO_CODE)+' — '+esc(c.NAME)+'</option>'}).join('');
+  var r=existing||{};
+  $('modalBox').innerHTML='<div class="modal-head"><h2>'+(existing?'Edit ':'Tambah ')+'Manajemen Kurs</h2><button class="btn" onclick="formClose()">×</button></div>'+
+    '<form class="form-grid" id="rateForm">'+
+    '<div class="field"><label>Kode Mata Uang ISO 4217 *</label><select id="rate_currency" required><option value="">Pilih mata uang...</option>'+opts+'</select></div>'+
+    '<div class="field"><label>Buy Reference *</label><input id="rate_buy_ref" type="number" step="any" required value="'+esc(r.BUY_REFERENCE||'')+'"></div>'+
+    '<div class="field"><label>Buy Spread</label><input id="rate_buy_spread" type="number" step="any" value="'+esc(r.BUY_SPREAD||'')+'"></div>'+
+    '<div class="field"><label>Sell Reference *</label><input id="rate_sell_ref" type="number" step="any" required value="'+esc(r.SELL_REFERENCE||'')+'"></div>'+
+    '<div class="field"><label>Sell Spread</label><input id="rate_sell_spread" type="number" step="any" value="'+esc(r.SELL_SPREAD||'')+'"></div>'+
+    '<div class="field full"><label>Source URL</label><input id="rate_source" type="url" value="'+esc(r.SOURCE_URL||'')+'"></div>'+
+    '</form><div class="modal-actions"><button class="btn" onclick="formClose()">Batal</button><button class="btn primary" onclick="saveRateForm('+JSON.stringify(existing?existing.ID:null)+')">Simpan</button></div>';
+  $('modal').classList.add('open');
+}
+async function saveRateForm(id){
+  var rec={CURRENCY:$('rate_currency').value,BUY_REFERENCE:$('rate_buy_ref').value,BUY_SPREAD:$('rate_buy_spread').value,SELL_REFERENCE:$('rate_sell_ref').value,SELL_SPREAD:$('rate_sell_spread').value,SOURCE_URL:$('rate_source').value};
+  if(!$('rateForm').reportValidity())return;
+  try{await api('moduleCreate',{module:'ManajemenKurs',record:rec});formClose();loadRateManagement(true)}catch(e){alert(e.message||e)}
+}
 function renderRateManagement(result){
   var rows=(result&&result.rows)||[];
-  var html='<div class="page-head"><div><h1>Manajemen Kurs</h1><div class="muted">Kurs referensi, spread, dan kurs Almara</div></div><div style="display:flex;gap:8px"><button class="btn" onclick="loadRateManagement(true)">↻ Refresh</button></div></div>';
+  var html='<div class="page-head"><div><h1>Manajemen Kurs</h1><div class="muted">Kurs referensi, spread, dan kurs Almara</div></div><div style="display:flex;gap:8px"><button class="btn" onclick="loadRateManagement(true)">↻ Refresh</button><button class="btn primary" onclick="rateFormOpen()">+ Tambah Kurs</button></div></div>';
   html+='<div class="toolbar"><input id="rateSearch" placeholder="Cari kode valas..." value="'+esc(APP.search)+'" onkeydown="if(event.key===\'Enter\'){APP.search=this.value;loadRateManagement()}"><button class="btn" onclick="APP.search=$(\'rateSearch\').value;loadRateManagement()">Cari</button><button class="btn" onclick="APP.search=\'\';loadRateManagement()">Reset</button></div>';
   html+='<div class="card rate-table-card"><div class="table-wrap"><table class="data-table rate-table"><thead><tr><th>Valas</th><th>Buy Reference</th><th>Buy Spread</th><th>Almara Buy</th><th>Sell Reference</th><th>Sell Spread</th><th>Almara Sell</th><th>Sumber</th><th>Update</th><th>Status</th></tr></thead><tbody>';
   if(!rows.length)html+='<tr><td colspan="10" class="muted" style="text-align:center;padding:28px">Belum ada data kurs.</td></tr>';
