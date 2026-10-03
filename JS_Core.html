@@ -51,7 +51,7 @@ async function renderBank(){
   $('content').innerHTML=h;
 }
 async function bankFormOpen(existing){
-  var meta=await api('rateMeta'), currencies=meta.currencies||[];
+  var meta=await api('bankMeta'), currencies=meta.currencies||[];
   $('modalBox').innerHTML='<div class="modal-head"><h2>'+(existing?'Edit ':'Tambah ')+'Rekening Bank</h2><button class="btn" onclick="formClose()">×</button></div><form class="form-grid" id="bankForm"><div class="field"><label>Bank *</label><input id="bank_name" required value="'+esc(existing?existing.BANK:'')+'"></div><div class="field"><label>No. Rekening *</label><input id="bank_account" required value="'+esc(existing?existing.ACCOUNT_NO:'')+'"></div><div class="field"><label>Pemilik</label><input id="bank_owner" value="'+esc(existing?existing.OWNER:'')+'"></div><div class="field"><label>Currency *</label><select id="bank_currency">'+currencies.map(function(x){return '<option value="'+esc(x.ISO_CODE)+'" '+(String(existing&&existing.CURRENCY||'IDR')===String(x.ISO_CODE)?'selected':'')+'>'+esc(x.ISO_CODE)+' — '+esc(x.NAME)+'</option>'}).join('')+'</select></div><div class="field"><label>Status</label><select id="bank_status"><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select></div></form><div class="modal-actions"><button class="btn" onclick="formClose()">Batal</button><button class="btn primary" onclick="saveBankForm('+JSON.stringify(existing?existing.ID:null)+')">Simpan</button></div>';
   $('modal').classList.add('open');
 }
