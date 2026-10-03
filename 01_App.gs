@@ -4,3 +4,4 @@ function onOpen(){SpreadsheetApp.getUi().createMenu('MC-Almara').addItem('Setup 
 function setupSystem(){return MC_Database.install()}
 function createInitialAdmin(){return MC_Auth.createInitialAdmin()}
 function api(action,payload){return MC_Router.api(action,payload||{})}
+function mcApi(action,payload){return MC_Router.api(action,payload||{})}
