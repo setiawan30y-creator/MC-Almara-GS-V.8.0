@@ -59,7 +59,7 @@ async function rateFormOpen(existing){
 async function saveRateForm(id){
   var rec={CURRENCY:$('rate_currency').value,BUY_REFERENCE:$('rate_buy_ref').value,BUY_SPREAD:$('rate_buy_spread').value,SELL_REFERENCE:$('rate_sell_ref').value,SELL_SPREAD:$('rate_sell_spread').value,SOURCE_URL:$('rate_source').value};
   if(!$('rateForm').reportValidity())return;
-  try{await api('moduleCreate',{module:'ManajemenKurs',record:rec});formClose();loadRateManagement(true)}catch(e){alert(e.message||e)}
+  try{await api(id?'updateRate':'createRate',{id:id||'',currency:rec.CURRENCY,buyReference:rec.BUY_REFERENCE,buySpread:rec.BUY_SPREAD,sellReference:rec.SELL_REFERENCE,sellSpread:rec.SELL_SPREAD,sourceUrl:rec.SOURCE_URL,status:'ACTIVE'});formClose();loadRateManagement(true)}catch(e){alert(e.message||e)}
 }
 function renderRateManagement(result){
   var rows=(result&&result.rows)||[];
