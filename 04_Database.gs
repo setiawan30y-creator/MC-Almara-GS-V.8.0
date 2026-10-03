@@ -126,6 +126,19 @@ const MC_Database = {
     });
   },
 
+  auditSchema: function() {
+    var ss=this.ss(), out=[];
+    Object.keys(MC_SHEETS).forEach(function(n){
+      var s=ss.getSheetByName(n);
+      if(!s){out.push({sheet:n,status:'MISSING',missing:MC_SHEETS[n]});return;}
+      var last=Math.max(s.getLastColumn(),1),h=s.getRange(1,1,1,last).getValues()[0].map(function(x){return String(x||'').trim()});
+      var missing=MC_SHEETS[n].filter(function(x){return h.indexOf(x)<0});
+      var extra=h.filter(function(x){return x&&MC_SHEETS[n].indexOf(x)<0});
+      out.push({sheet:n,status:missing.length?'SCHEMA_MISMATCH':'OK',missing:missing,extra:extra});
+    });
+    return {ok:out.every(function(x){return x.status==='OK'}),version:(MC_Database.find('CONFIG','KEY','SCHEMA_VERSION')||{}).VALUE||'unknown',sheets:out};
+  },
+
   migrateSchema_: function(ss) {
     var changed=[];
     Object.keys(MC_SHEETS).forEach(function(n){
