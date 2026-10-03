@@ -131,7 +131,7 @@ function renderSaldoAwal(meta){
 }
 function addFxOpeningRow(){
   var root=$('so_fx_rows');if(!root)return;
-  var tr=document.createElement('tr');
+  var tr=document.createElement('tr');tr.className='so-new-fx';
   tr.innerHTML='<td><select class="so-fx-cur"><option value="">Pilih...</option>'+((window.SO_CURRENCIES||[]).map(function(x){return '<option value="'+esc(x.ISO_CODE)+'">'+esc(x.ISO_CODE)+' — '+esc(x.NAME)+'</option>'}).join(''))+'</select></td><td><input class="so-fx-qty" type="number" min="0" step="any" value="0"></td><td><input class="so-fx-rate" type="number" min="0" step="any" value="0"></td><td class="so-fx-amount">0</td>';
   root.appendChild(tr);
   tr.querySelectorAll('input').forEach(function(el){el.addEventListener('input',updateFxOpeningTotals)});
@@ -156,7 +156,7 @@ async function saveCashOpening(){
 }
 async function saveFxOpening(){
   try{
-    var rows=Array.from(document.querySelectorAll('#so_fx_rows tr')).map(function(r){
+    var rows=Array.from(document.querySelectorAll('#so_fx_rows tr.so-new-fx')).map(function(r){
       var cur=r.querySelector('.so-fx-cur'),qty=r.querySelector('.so-fx-qty'),rate=r.querySelector('.so-fx-rate');
       return {currency:cur?cur.value:'',qty:qty?qty.value:0,rate:rate?rate.value:0};
     }).filter(function(x){return x.currency||Number(x.qty)>0||Number(x.rate)>0});
