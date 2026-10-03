@@ -32,7 +32,7 @@ async function openPage(module){
     if(module==='Closing'){
       var cm=await api('closingMeta');if(seq!==NAV_SEQ)return;renderClosing(cm);return;
     }
-    if(module==='RiwayatTransaksi'){renderHistory();return;}
+    if(module==='RiwayatTransaksi'){renderHistory();return;}if(module==='Bank'){await renderBank();return;}if(module==='Pengeluaran'){await renderExpense();return;}if(module==='Gantungan'){await renderGantungan();return;}
     if(module==='ManajemenKurs'){var rm=await api('moduleList',{module:'ManajemenKurs',query:{search:APP.search,page:APP.page,pageSize:100}});if(seq!==NAV_SEQ)return;renderRateManagement(rm);return;}
     renderPage(MODULES[module]);
   }catch(e){
@@ -40,6 +40,51 @@ async function openPage(module){
     $('content').innerHTML='<div class="card error-card"><h2>Gagal memuat</h2><div class="muted">'+esc(e&&e.message||e)+'</div><button class="btn" onclick="openPage(APP.module)">Muat ulang</button></div>';
   }
 }
+async function renderBank(){
+  var rows=(await api('moduleList',{module:'Bank',query:{page:1,pageSize:100}})).rows||[];
+  var h='<div class="page-head"><div><h1>Bank</h1><div class="muted">Rekening bank, saldo, dan transfer antar rekening.</div></div><button class="btn primary" onclick="bankFormOpen()">+ Tambah Rekening</button></div>';
+  h+='<div class="card"><div class="table-wrap"><table class="data-table"><thead><tr><th>Bank</th><th>No. Rekening</th><th>Pemilik</th><th>Currency</th><th>Saldo</th><th>Status</th><th>Aksi</th></tr></thead><tbody>';
+  if(!rows.length)h+='<tr><td colspan="7" class="empty">Belum ada rekening.</td></tr>';
+  rows.forEach(function(x){h+='<tr><td><b>'+esc(x.BANK)+'</b></td><td>'+esc(x.ACCOUNT_NO)+'</td><td>'+esc(x.OWNER||'-')+'</td><td>'+esc(x.CURRENCY||'IDR')+'</td><td class="num">'+Number(x.CURRENT_BALANCE||0).toLocaleString('id-ID')+'</td><td><span class="badge">'+esc(x.STATUS||'-')+'</span></td><td><button class="btn" onclick="bankFormOpen('+JSON.stringify(x)+')">Edit</button></td></tr>'});
+  h+='</tbody></table></div></div>';
+  h+='<div class="card" style="margin-top:16px"><div class="card-head"><h3>Transfer Antar Rekening</h3></div><div class="form-grid"><div class="field"><label>Dari</label><select id="bt_from">'+rows.map(function(x){return '<option value="'+esc(x.ID)+'">'+esc(x.BANK)+' • '+esc(x.ACCOUNT_NO)+' • '+esc(x.CURRENCY||'IDR')+'</option>'}).join('')+'</select></div><div class="field"><label>Ke</label><select id="bt_to">'+rows.map(function(x){return '<option value="'+esc(x.ID)+'">'+esc(x.BANK)+' • '+esc(x.ACCOUNT_NO)+' • '+esc(x.CURRENCY||'IDR')+'</option>'}).join('')+'</select></div><div class="field"><label>Nominal</label><input id="bt_amount" type="number" min="0" step="any"></div><div class="field"><label>Keterangan</label><input id="bt_desc"></div></div><div class="modal-actions"><button class="btn primary" onclick="bankTransferSave()">Transfer</button></div></div>';
+  $('content').innerHTML=h;
+}
+async function bankFormOpen(existing){
+  var meta=await api('rateMeta'), currencies=meta.currencies||[];
+  $('modalBox').innerHTML='<div class="modal-head"><h2>'+(existing?'Edit ':'Tambah ')+'Rekening Bank</h2><button class="btn" onclick="formClose()">×</button></div><form class="form-grid" id="bankForm"><div class="field"><label>Bank *</label><input id="bank_name" required value="'+esc(existing?existing.BANK:'')+'"></div><div class="field"><label>No. Rekening *</label><input id="bank_account" required value="'+esc(existing?existing.ACCOUNT_NO:'')+'"></div><div class="field"><label>Pemilik</label><input id="bank_owner" value="'+esc(existing?existing.OWNER:'')+'"></div><div class="field"><label>Currency *</label><select id="bank_currency">'+currencies.map(function(x){return '<option value="'+esc(x.ISO_CODE)+'" '+(String(existing&&existing.CURRENCY||'IDR')===String(x.ISO_CODE)?'selected':'')+'>'+esc(x.ISO_CODE)+' — '+esc(x.NAME)+'</option>'}).join('')+'</select></div><div class="field"><label>Status</label><select id="bank_status"><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select></div></form><div class="modal-actions"><button class="btn" onclick="formClose()">Batal</button><button class="btn primary" onclick="saveBankForm('+JSON.stringify(existing?existing.ID:null)+')">Simpan</button></div>';
+  $('modal').classList.add('open');
+}
+async function saveBankForm(id){
+  try{var p={id:id||'',bank:$('bank_name').value,accountNo:$('bank_account').value,owner:$('bank_owner').value,currency:$('bank_currency').value,status:$('bank_status').value};await api(id?'updateBankAccount':'createBankAccount',p);formClose();openPage('Bank')}catch(e){alert(e.message||e)}
+}
+async function bankTransferSave(){
+  try{await api('bankTransfer',{fromBankId:$('bt_from').value,toBankId:$('bt_to').value,amount:$('bt_amount').value,description:$('bt_desc').value});alert('Transfer bank berhasil');openPage('Bank')}catch(e){alert(e.message||e)}
+}
+async function renderExpense(){
+  var r=await api('moduleList',{module:'Pengeluaran',query:{page:1,pageSize:100}}),rows=r.rows||[];
+  var banks=(await api('moduleList',{module:'Bank',query:{page:1,pageSize:100}})).rows||[];
+  var h='<div class="page-head"><div><h1>Pengeluaran</h1><div class="muted">Semua pengeluaran mengurangi Kas/Bank melalui Core Engine.</div></div><button class="btn primary" onclick="expenseFormOpen('+JSON.stringify(banks)+')">+ Pengeluaran</button></div><div class="card"><div class="table-wrap"><table class="data-table"><thead><tr><th>Tanggal</th><th>Kategori</th><th>Sumber</th><th>Nominal</th><th>Keterangan</th></tr></thead><tbody>';
+  rows.forEach(function(x){h+='<tr><td>'+esc(x.DATE||'-')+'</td><td>'+esc(x.CATEGORY||'-')+'</td><td>'+esc(x.SOURCE||'-')+'</td><td class="num">'+Number(x.AMOUNT||0).toLocaleString('id-ID')+'</td><td>'+esc(x.DESCRIPTION||'-')+'</td></tr>'});
+  h+='</tbody></table></div></div>';$('content').innerHTML=h;
+}
+function expenseFormOpen(banks){
+  $('modalBox').innerHTML='<div class="modal-head"><h2>Tambah Pengeluaran</h2><button class="btn" onclick="formClose()">×</button></div><form class="form-grid"><div class="field"><label>Tanggal *</label><input id="ex_date" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="field"><label>Kategori *</label><input id="ex_cat" required></div><div class="field"><label>Nominal *</label><input id="ex_amount" type="number" min="0" step="any" required></div><div class="field"><label>Sumber *</label><select id="ex_source" onchange="$('ex_bank').disabled=this.value!=='BANK'"><option value="CASH">CASH</option><option value="BANK">BANK</option></select></div><div class="field"><label>Rekening</label><select id="ex_bank" disabled>'+banks.map(function(x){return '<option value="'+esc(x.ID)+'">'+esc(x.BANK)+' • '+esc(x.ACCOUNT_NO)+'</option>'}).join('')+'</select></div><div class="field full"><label>Keterangan</label><textarea id="ex_desc"></textarea></div></form><div class="modal-actions"><button class="btn" onclick="formClose()">Batal</button><button class="btn primary" onclick="saveExpense()">Simpan</button></div>';
+  $('modal').classList.add('open');
+}
+async function saveExpense(){try{await api('createExpense',{date:$('ex_date').value,category:$('ex_cat').value,amount:$('ex_amount').value,source:$('ex_source').value,bankAccountId:$('ex_bank').value,description:$('ex_desc').value});formClose();openPage('Pengeluaran')}catch(e){alert(e.message||e)}}
+async function renderGantungan(){
+  var r=await api('moduleList',{module:'Gantungan',query:{page:1,pageSize:100}}),rows=r.rows||[];
+  var h='<div class="page-head"><div><h1>Gantungan</h1><div class="muted">Kas fisik di luar kas tetapi tetap masuk rekonsiliasi.</div></div><button class="btn primary" onclick="gantunganFormOpen()">+ Gantungan</button></div><div class="card"><div class="table-wrap"><table class="data-table"><thead><tr><th>Tanggal</th><th>Nominal</th><th>Keterangan</th><th>Status</th><th>Aksi</th></tr></thead><tbody>';
+  rows.forEach(function(x){h+='<tr><td>'+esc(x.DATE||'-')+'</td><td class="num">'+Number(x.AMOUNT||0).toLocaleString('id-ID')+'</td><td>'+esc(x.DESCRIPTION||'-')+'</td><td><span class="badge">'+esc(x.STATUS||'-')+'</span></td><td>'+(String(x.STATUS).toUpperCase()==='OUTSTANDING'?'<button class="btn" onclick="settleGantungan(\''+esc(x.ID)+'\')">Kembalikan</button>':'-')+'</td></tr>'});
+  h+='</tbody></table></div></div>';$('content').innerHTML=h;
+}
+function gantunganFormOpen(){
+  $('modalBox').innerHTML='<div class="modal-head"><h2>Tambah Gantungan</h2><button class="btn" onclick="formClose()">×</button></div><form class="form-grid"><div class="field"><label>Tanggal *</label><input id="gn_date" type="date" required value="'+new Date().toISOString().slice(0,10)+'"></div><div class="field"><label>Nominal *</label><input id="gn_amount" type="number" min="0" step="any" required></div><div class="field full"><label>Keterangan *</label><textarea id="gn_desc" required></textarea></div></form><div class="modal-actions"><button class="btn" onclick="formClose()">Batal</button><button class="btn primary" onclick="saveGantungan()">Simpan</button></div>';
+  $('modal').classList.add('open');
+}
+async function saveGantungan(){try{await api('createGantungan',{date:$('gn_date').value,amount:$('gn_amount').value,description:$('gn_desc').value});formClose();openPage('Gantungan')}catch(e){alert(e.message||e)}}
+async function settleGantungan(id){try{await api('settleGantungan',{id:id,returnDate:new Date().toISOString().slice(0,10)});alert('Gantungan dikembalikan');openPage('Gantungan')}catch(e){alert(e.message||e)}}
 async function rateFormOpen(existing){
   var meta=await api('rateMeta');
   var currencies=(meta&&meta.currencies)||[];
