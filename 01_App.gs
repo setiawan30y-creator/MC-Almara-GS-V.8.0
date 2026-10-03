@@ -1,4 +1,4 @@
-function include(name){return HtmlService.createHtmlOutputFromFile(name).getContent()}
+function include(name){return HtmlService.createTemplateFromFile(name).getRawContent()}
 function doGet(e){return MC_Router.render(e)}
 function onOpen(){SpreadsheetApp.getUi().createMenu('MC-Almara').addItem('Setup System','setupSystem').addItem('Create Initial Admin','createInitialAdmin').addToUi()}
 function setupSystem(){return MC_Database.install()}
