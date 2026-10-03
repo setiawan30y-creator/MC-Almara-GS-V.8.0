@@ -1,147 +1,380 @@
-const MC_Database={ensureSheet:function(n,h){var ss=this.ss(),s=ss.getSheetByName(n);if(!s){s=ss.insertSheet(n);s.getRange(1,1,1,h.length).setValues([h]);s.setFrozenRows(1)}return s},ss(){const id=PropertiesService.getScriptProperties().getProperty(MC_CONFIG.DB_PROPERTY);MC_Utils.require(id,'Database belum di-setup');return SpreadsheetApp.openById(id)},sheet(n){const s=this.ss().getSheetByName(n);MC_Utils.require(s,'Sheet '+n+' tidak ditemukan');return s},rows(n){const v=this.sheet(n).getDataRange().getValues();if(v.length<2)return[];return v.slice(1).filter(r=>r.some(x=>x!==''&&x!==null)).map(r=>Object.fromEntries(v[0].map((k,i)=>[k,r[i]])))},find(n,k,v){return this.rows(n).find(x=>String(x[k])===String(v))||null},update(n,k,v,o){const s=this.sheet(n),data=s.getDataRange().getValues(),h=data[0],idx=h.indexOf(k);MC_Utils.require(idx>=0,'Kolom '+k+' tidak ditemukan');for(let r=1;r<data.length;r++){if(String(data[r][idx])===String(v)){s.getRange(r+1,1,1,h.length).setValues([h.map(function(key,i){return o[key]??data[r][i]})]);return o}}throw new Error('Record tidak ditemukan')},insert(n,o){const s=this.sheet(n),h=s.getRange(1,1,1,s.getLastColumn()).getValues()[0];s.appendRow(h.map(k=>o[k]??''));return o},removeWhere(n,k,v){const s=this.sheet(n),data=s.getDataRange().getValues(),h=data[0],idx=h.indexOf(k);MC_Utils.require(idx>=0,'Kolom '+k+' tidak ditemukan');for(let r=data.length-1;r>=1;r--){if(String(data[r][idx])===String(v))s.deleteRow(r+1)}return true},audit(m,a,id,o,n,r){this.insert('AUDIT_LOG',{ID:Utilities.getUuid(),USER_ID:Session.getActiveUser().getEmail()||'system',TIMESTAMP:new Date(),MODULE:m,ACTION:a,RECORD_ID:id,OLD_VALUE:JSON.stringify(o??null),NEW_VALUE:JSON.stringify(n??null),IP:'',SESSION_ID:Session.getTemporaryActiveUserKey(),REASON:r||''})},install(){
-  var configuredId=PropertiesService.getScriptProperties().getProperty(MC_CONFIG.DB_PROPERTY);
-  var ss=SpreadsheetApp.getActiveSpreadsheet();
+const MC_Database = {
+  ensureSheet: function(n, h) {
+    var ss = this.ss();
+    var s = ss.getSheetByName(n);
+    if (!s) {
+      s = ss.insertSheet(n);
+      s.getRange(1, 1, 1, h.length).setValues([h]);
+      s.setFrozenRows(1);
+    } else if (s.getLastRow() === 0) {
+      s.getRange(1, 1, 1, h.length).setValues([h]);
+      s.setFrozenRows(1);
+    }
+    return s;
+  },
 
-  if(!ss && configuredId){
-    try{ss=SpreadsheetApp.openById(configuredId)}catch(e){}
-  }
+  ss: function() {
+    var id = PropertiesService.getScriptProperties()
+      .getProperty(MC_CONFIG.DB_PROPERTY);
 
-  MC_Utils.require(ss,'Spreadsheet database tidak ditemukan');
-
-  PropertiesService.getScriptProperties().setProperty(MC_CONFIG.DB_PROPERTY,ss.getId());
-
-  var names=Object.keys(MC_SHEETS);
-  names.forEach(function(n){
-    var s=ss.getSheetByName(n);
-    if(!s)s=ss.insertSheet(n);
-    var h=MC_SHEETS[n];
-
-    if(s.getLastColumn()===0){
-      s.getRange(1,1,1,h.length).setValues([h]);
-    }else{
-      var current=s.getRange(1,1,1,Math.max(s.getLastColumn(),h.length)).getValues()[0];
-      var missing=current.slice(0,h.length).some(function(v,i){return String(v||'')!==String(h[i])});
-      if(missing && s.getLastRow()<=1){
-        s.clear();
-        s.getRange(1,1,1,h.length).setValues([h]);
+    if (id) {
+      try {
+        return SpreadsheetApp.openById(id);
+      } catch (e) {
+        // Fall through and recover from the bound spreadsheet.
       }
     }
-    s.setFrozenRows(1);
-  });
 
-  this.seed();
+    var active = SpreadsheetApp.getActiveSpreadsheet();
+    MC_Utils.require(active, 'Database belum di-setup');
+    PropertiesService.getScriptProperties()
+      .setProperty(MC_CONFIG.DB_PROPERTY, active.getId());
 
-  SpreadsheetApp.flush();
+    return active;
+  },
 
-  return{
-    ok:true,
-    spreadsheetId:ss.getId(),
-    url:ss.getUrl(),
-    sheetCount:names.length
-  };
-},
-seed(){
-  var ss=this.ss();
+  sheet: function(n) {
+    var s = this.ss().getSheetByName(n);
+    MC_Utils.require(s, 'Sheet ' + n + ' tidak ditemukan');
+    return s;
+  },
 
-  function readRows(name){
-    var s=ss.getSheetByName(name);
-    var data=s.getDataRange().getValues();
-    if(data.length<2)return[];
-    return data.slice(1).filter(function(r){
-      return r.some(function(x){return x!==''&&x!==null});
-    }).map(function(r){
-      return Object.fromEntries(data[0].map(function(k,i){return[k,r[i]]}));
-    });
-  }
+  rows: function(n) {
+    var v = this.sheet(n).getDataRange().getValues();
+    if (v.length < 2) return [];
+    return v.slice(1)
+      .filter(function(r) {
+        return r.some(function(x) {
+          return x !== '' && x !== null;
+        });
+      })
+      .map(function(r) {
+        return Object.fromEntries(
+          v[0].map(function(k, i) {
+            return [k, r[i]];
+          })
+        );
+      });
+  },
 
-  function appendBatch(name,objects){
-    if(!objects.length)return;
-    var s=ss.getSheetByName(name);
-    var h=s.getRange(1,1,1,s.getLastColumn()).getValues()[0];
-    var values=objects.map(function(o){
-      return h.map(function(k){return o[k]??''});
-    });
-    s.getRange(s.getLastRow()+1,1,values.length,h.length).setValues(values);
-  }
+  find: function(n, k, v) {
+    return this.rows(n).find(function(x) {
+      return String(x[k]) === String(v);
+    }) || null;
+  },
 
-  var roles=readRows('ROLES');
-  if(!roles.length){
-    appendBatch('ROLES',MC_CONFIG.ROLES.map(function(n,i){
-      return{ID:'ROLE-'+(i+1),NAME:n,DESCRIPTION:'',STATUS:'ACTIVE'};
+  update: function(n, k, v, o) {
+    var s = this.sheet(n);
+    var data = s.getDataRange().getValues();
+    var h = data[0];
+    var idx = h.indexOf(k);
+
+    MC_Utils.require(idx >= 0, 'Kolom ' + k + ' tidak ditemukan');
+
+    for (var r = 1; r < data.length; r++) {
+      if (String(data[r][idx]) === String(v)) {
+        s.getRange(r + 1, 1, 1, h.length).setValues([
+          h.map(function(key, i) {
+            return o[key] ?? data[r][i];
+          })
+        ]);
+        return o;
+      }
+    }
+
+    throw new Error('Record tidak ditemukan');
+  },
+
+  insert: function(n, o) {
+    var s = this.sheet(n);
+    var h = s.getRange(1, 1, 1, s.getLastColumn()).getValues()[0];
+    s.appendRow(h.map(function(k) {
+      return o[k] ?? '';
     }));
-  }
+    return o;
+  },
 
-  var roleRows=readRows('ROLES');
-  var roleIds={};
-  roleRows.forEach(function(r){roleIds[r.NAME]=r.ID});
+  removeWhere: function(n, k, v) {
+    var s = this.sheet(n);
+    var data = s.getDataRange().getValues();
+    var h = data[0];
+    var idx = h.indexOf(k);
 
-  var perms=readRows('PERMISSIONS');
-  var existingPerm={};
-  perms.forEach(function(x){
-    existingPerm[String(x.ROLE_ID)+'|'+String(x.MODULE)+'|'+String(x.PERMISSION)]=true;
-  });
+    MC_Utils.require(idx >= 0, 'Kolom ' + k + ' tidak ditemukan');
 
-  var matrix={
-    Admin:['view','create','edit','delete','print','export','approve','closing','rate_management','transaction_edit','wa'],
-    Manager:['view','create','edit','print','export','approve','closing','rate_management','transaction_edit','wa'],
-    Teller:['view','create','edit','print','transaction_edit','wa'],
-    Kasir:['view','create','edit','print','wa'],
-    Finance:['view','create','edit','print','export','approve','closing'],
-    Auditor:['view','print','export']
-  };
+    for (var r = data.length - 1; r >= 1; r--) {
+      if (String(data[r][idx]) === String(v)) {
+        s.deleteRow(r + 1);
+      }
+    }
+    return true;
+  },
 
-  var newPerms=[];
-  MC_CONFIG.ROLES.forEach(function(name){
-    (matrix[name]||['view']).forEach(function(permission){
-      MC_CONFIG.MODULES.forEach(function(module){
-        var roleId=roleIds[name];
-        var key=String(roleId)+'|'+module+'|'+permission;
-        if(!existingPerm[key]){
-          newPerms.push({
-            ID:Utilities.getUuid(),
-            ROLE_ID:roleId,
-            PERMISSION:permission,
-            MODULE:module,
-            STATUS:'ACTIVE'
-          });
-          existingPerm[key]=true;
+  audit: function(m, a, id, o, n, r) {
+    this.insert('AUDIT_LOG', {
+      ID: Utilities.getUuid(),
+      USER_ID: Session.getActiveUser().getEmail() || 'system',
+      TIMESTAMP: new Date(),
+      MODULE: m,
+      ACTION: a,
+      RECORD_ID: id,
+      OLD_VALUE: JSON.stringify(o ?? null),
+      NEW_VALUE: JSON.stringify(n ?? null),
+      IP: '',
+      SESSION_ID: Session.getTemporaryActiveUserKey(),
+      REASON: r || ''
+    });
+  },
+
+  install: function() {
+    var start = Date.now();
+    var props = PropertiesService.getScriptProperties();
+    var id = props.getProperty(MC_CONFIG.DB_PROPERTY);
+    var ss = null;
+
+    if (id) {
+      try {
+        ss = SpreadsheetApp.openById(id);
+      } catch (e) {
+        ss = null;
+      }
+    }
+
+    // This project is spreadsheet-bound. Prefer the bound spreadsheet so
+    // installation never silently creates a second database.
+    if (!ss) {
+      ss = SpreadsheetApp.getActiveSpreadsheet();
+    }
+
+    MC_Utils.require(ss, 'Spreadsheet database tidak ditemukan');
+    props.setProperty(MC_CONFIG.DB_PROPERTY, ss.getId());
+
+    var created = 0;
+    var initialized = 0;
+
+    // Create/initialize all sheets with one header write per sheet.
+    Object.keys(MC_SHEETS).forEach(function(n) {
+      var s = ss.getSheetByName(n);
+
+      if (!s) {
+        s = ss.insertSheet(n);
+        created++;
+      }
+
+      var h = MC_SHEETS[n];
+
+      if (s.getLastRow() === 0) {
+        s.getRange(1, 1, 1, h.length).setValues([h]);
+        initialized++;
+      } else {
+        var current = s.getRange(1, 1, 1, Math.max(s.getLastColumn(), 1))
+          .getValues()[0];
+
+        // Empty/placeholder first row: initialize it.
+        if (!current.some(function(x) {
+          return x !== '' && x !== null;
+        })) {
+          s.getRange(1, 1, 1, h.length).setValues([h]);
+          initialized++;
         }
+      }
+
+      s.setFrozenRows(1);
+    });
+
+    SpreadsheetApp.flush();
+
+    var seedResult = this.seedBatch_(ss);
+
+    SpreadsheetApp.flush();
+
+    var result = {
+      ok: true,
+      spreadsheetId: ss.getId(),
+      url: ss.getUrl(),
+      sheetCount: Object.keys(MC_SHEETS).length,
+      createdSheets: created,
+      initializedSheets: initialized,
+      rolesInserted: seedResult.rolesInserted,
+      permissionsInserted: seedResult.permissionsInserted,
+      configInserted: seedResult.configInserted,
+      currenciesInserted: seedResult.currenciesInserted,
+      elapsedMs: Date.now() - start
+    };
+
+    console.log('MC-ALMARA INSTALL COMPLETE', result);
+    return result;
+  },
+
+  seedBatch_: function(ss) {
+    var result = {
+      rolesInserted: 0,
+      permissionsInserted: 0,
+      configInserted: 0,
+      currenciesInserted: 0
+    };
+
+    // Roles: read once, append missing rows in one batch.
+    var roleSheet = ss.getSheetByName('ROLES');
+    var roleData = roleSheet.getDataRange().getValues();
+    var roleHeader = roleData[0];
+    var existingRoles = roleData.slice(1).map(function(r) {
+      return String(r[0] || '');
+    });
+
+    var roleRows = [];
+    MC_CONFIG.ROLES.forEach(function(name, i) {
+      var id = 'ROLE-' + (i + 1);
+      if (existingRoles.indexOf(id) < 0) {
+        roleRows.push([
+          id,
+          name,
+          '',
+          'ACTIVE'
+        ]);
+      }
+    });
+
+    if (roleRows.length) {
+      roleSheet.getRange(
+        roleSheet.getLastRow() + 1,
+        1,
+        roleRows.length,
+        roleHeader.length
+      ).setValues(roleRows);
+      result.rolesInserted = roleRows.length;
+    }
+
+    // Permissions: build the complete desired matrix in memory,
+    // compare once, then append all missing rows in one write.
+    var permSheet = ss.getSheetByName('PERMISSIONS');
+    var permData = permSheet.getDataRange().getValues();
+    var permHeader = permData[0];
+    var existingPerms = {};
+
+    permData.slice(1).forEach(function(r) {
+      var key = [
+        String(r[1] || ''),
+        String(r[2] || ''),
+        String(r[3] || '')
+      ].join('|');
+      existingPerms[key] = true;
+    });
+
+    var matrix = {
+      Admin: [
+        'view','create','edit','delete','print','export','approve',
+        'closing','rate_management','transaction_edit','wa'
+      ],
+      Manager: [
+        'view','create','edit','print','export','approve',
+        'closing','rate_management','transaction_edit','wa'
+      ],
+      Teller: [
+        'view','create','edit','print','transaction_edit','wa'
+      ],
+      Kasir: [
+        'view','create','edit','print','wa'
+      ],
+      Finance: [
+        'view','create','edit','print','export','approve','closing'
+      ],
+      Auditor: [
+        'view','print','export'
+      ]
+    };
+
+    var permRows = [];
+
+    MC_CONFIG.ROLES.forEach(function(name, i) {
+      var roleId = 'ROLE-' + (i + 1);
+      var permissions = matrix[name] || ['view'];
+
+      MC_CONFIG.MODULES.forEach(function(module) {
+        permissions.forEach(function(permission) {
+          var key = [
+            roleId,
+            permission,
+            module
+          ].join('|');
+
+          if (!existingPerms[key]) {
+            permRows.push([
+              Utilities.getUuid(),
+              roleId,
+              permission,
+              module,
+              'ACTIVE'
+            ]);
+            existingPerms[key] = true;
+          }
+        });
       });
     });
-  });
-  appendBatch('PERMISSIONS',newPerms);
 
-  var configs=readRows('CONFIG');
-  if(!configs.some(function(x){return x.KEY==='TRANSACTION_THRESHOLD_USD'})){
-    appendBatch('CONFIG',[{
-      KEY:'TRANSACTION_THRESHOLD_USD',
-      VALUE:'10000',
-      DESCRIPTION:'Monthly customer transaction threshold in USD equivalent'
-    }]);
-  }
+    if (permRows.length) {
+      permSheet.getRange(
+        permSheet.getLastRow() + 1,
+        1,
+        permRows.length,
+        permHeader.length
+      ).setValues(permRows);
+      result.permissionsInserted = permRows.length;
+    }
 
-  var currencies=readRows('CURRENCY_MASTER');
-  if(!currencies.length){
-    appendBatch('CURRENCY_MASTER',[
-      ['USD','US Dollar',2],
-      ['EUR','Euro',2],
-      ['JPY','Japanese Yen',0],
-      ['GBP','Pound Sterling',2],
-      ['SGD','Singapore Dollar',2],
-      ['AUD','Australian Dollar',2],
-      ['CNY','Chinese Yuan',2]
-    ].map(function(x,i){
-      return{
-        ID:'CUR-'+(i+1),
-        ISO_CODE:x[0],
-        NAME:x[1],
-        COUNTRY:'',
-        FLAG:'',
-        SYMBOL:'',
-        DECIMAL_PRECISION:x[2],
-        STATUS:'ACTIVE',
-        DISPLAY_ORDER:i+1
-      };
-    }));
+    // Config: seed only when the key is absent.
+    var configSheet = ss.getSheetByName('CONFIG');
+    var configData = configSheet.getDataRange().getValues();
+    var hasThreshold = configData.slice(1).some(function(r) {
+      return String(r[0] || '') === 'TRANSACTION_THRESHOLD_USD';
+    });
+
+    if (!hasThreshold) {
+      configSheet.getRange(configSheet.getLastRow() + 1, 1, 1, 3)
+        .setValues([[
+          'TRANSACTION_THRESHOLD_USD',
+          '10000',
+          'Monthly customer transaction threshold in USD equivalent'
+        ]]);
+      result.configInserted++;
+    }
+
+    // Currency master: seed only when empty.
+    var currencySheet = ss.getSheetByName('CURRENCY_MASTER');
+    var currencyData = currencySheet.getDataRange().getValues();
+    var hasCurrencyRows = currencyData.length > 1 &&
+      currencyData.slice(1).some(function(r) {
+        return r.some(function(x) {
+          return x !== '' && x !== null;
+        });
+      });
+
+    if (!hasCurrencyRows) {
+      var currencies = [
+        ['CUR-1','USD','US Dollar','', '', '', 2, 'ACTIVE', 1],
+        ['CUR-2','EUR','Euro','', '', '', 2, 'ACTIVE', 2],
+        ['CUR-3','JPY','Japanese Yen','', '', '', 0, 'ACTIVE', 3],
+        ['CUR-4','GBP','Pound Sterling','', '', '', 2, 'ACTIVE', 4],
+        ['CUR-5','SGD','Singapore Dollar','', '', '', 2, 'ACTIVE', 5],
+        ['CUR-6','AUD','Australian Dollar','', '', '', 2, 'ACTIVE', 6],
+        ['CUR-7','CNY','Chinese Yuan','', '', '', 2, 'ACTIVE', 7]
+      ];
+
+      currencySheet.getRange(
+        currencySheet.getLastRow() + 1,
+        1,
+        currencies.length,
+        currencies[0].length
+      ).setValues(currencies);
+
+      result.currenciesInserted = currencies.length;
+    }
+
+    return result;
+  },
+
+  seed: function() {
+    // Backward-compatible entry point.
+    return this.seedBatch_(this.ss());
   }
-}};
+};
