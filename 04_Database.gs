@@ -126,6 +126,29 @@ const MC_Database = {
     });
   },
 
+  migrateSchema_: function(ss) {
+    var changed=[];
+    Object.keys(MC_SHEETS).forEach(function(n){
+      var s=ss.getSheetByName(n);
+      if(!s)return;
+      var desired=MC_SHEETS[n];
+      var lastCol=Math.max(s.getLastColumn(),1);
+      var current=s.getRange(1,1,1,lastCol).getValues()[0].map(function(x){return String(x||'').trim()});
+      if(!current.some(function(x){return x!=='';})){
+        s.getRange(1,1,1,desired.length).setValues([desired]);
+        changed.push({sheet:n,added:desired});
+        return;
+      }
+      var missing=desired.filter(function(h){return current.indexOf(h)<0});
+      if(missing.length){
+        var start=current.length+1;
+        s.getRange(1,start,1,missing.length).setValues([missing]);
+        changed.push({sheet:n,added:missing});
+      }
+    });
+    return changed;
+  },
+
   install: function() {
     var start = Date.now();
     var props = PropertiesService.getScriptProperties();
@@ -184,6 +207,12 @@ const MC_Database = {
 
     SpreadsheetApp.flush();
 
+    var migrations = this.migrateSchema_(ss);
+    var schemaSheet = ss.getSheetByName('CONFIG');
+    var schemaExists = schemaSheet.getDataRange().getValues().slice(1).some(function(r){return String(r[0]||'')==='SCHEMA_VERSION'});
+    if(!schemaExists){schemaSheet.getRange(schemaSheet.getLastRow()+1,1,1,3).setValues([['SCHEMA_VERSION','8.1','MC-Almara schema migration version']]);}
+    SpreadsheetApp.flush();
+
     var seedResult = this.seedBatch_(ss);
 
     SpreadsheetApp.flush();
@@ -199,6 +228,7 @@ const MC_Database = {
       permissionsInserted: seedResult.permissionsInserted,
       configInserted: seedResult.configInserted,
       currenciesInserted: seedResult.currenciesInserted,
+      migrations: migrations,
       elapsedMs: Date.now() - start
     };
 
